@@ -99,13 +99,21 @@ public class MainActivity extends Activity {
 
                 for (ScanResult wifi : list) {
 
-//                    WifiManager.
+//                    TODO map wifi scanresults to remove duplicate ssid
 
                     if (!myDataset.contains(wifi)) {
                         myDataset.add(wifi);
-                        Log.d("MAINWIFI", wifi.BSSID);
+                        StringBuilder sb = new StringBuilder();
+                        sb.append("BSSID: ").append(wifi.BSSID)
+                                .append("   SSID:").append(wifi.SSID+"\n")
+                                .append("   RSSI:").append(wifi.level)
+                                .append("   Capabilities:").append(wifi.capabilities+"\n");
+
+                        Log.d("LIST2", wifi.toString());
+                        Log.d("LIST", sb.toString());
+
+
                     }
-                    Log.d("MAINWIFI",wifi.SSID.toString());
                     mAdapter.notifyDataSetChanged();
                 }
 
@@ -127,9 +135,13 @@ public class MainActivity extends Activity {
         List<WifiConfiguration> list = _manager.getConfiguredNetworks();
         for (WifiConfiguration item : list) {
             StringBuilder sb = new StringBuilder();
-            sb.append("NetId: ").append(item.networkId).append("   SSID:")
-                    .append(item.SSID).append("   Item:").append(item.toString());
+            sb.append("NetId: ").append(item.networkId)
+                    .append("   SSID:").append(item.SSID);
             Log.d("LIST", sb.toString());
+
+            sb = new StringBuilder();
+
+
         }
 
     }
@@ -242,7 +254,7 @@ class MyAdapter extends RecyclerView.Adapter<MyAdapter.ViewHolder> {
         // - replace the contents of the view with that element
         ScanResult wifi = mDataset.get(position);
         holder.textSsid.setText(wifi.SSID);
-        holder.textBssid.setText(wifi.BSSID);
+        holder.textBssid.setText(wifi.capabilities);
     }
 
     // Return the size of your dataset (invoked by the layout manager)
