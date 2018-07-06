@@ -2,14 +2,20 @@ package com.example.kwei.wifimodule;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.net.NetworkRequest;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
@@ -28,24 +34,23 @@ import android.widget.Toast;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends Activity {
+import static android.net.NetworkCapabilities.TRANSPORT_WIFI;
 
-    // NOTE: WifiManager.startScan() deprecated in API28
+public class MainActivity extends Activity {
     // TODO : Add WikiLock to prevent user from accidentally disabling wifi
 
     WifiManager _manager;
+    ConnectivityManager connManager;
     WifiConfiguration _config;
     BroadcastReceiver _receiver;
 
-    private RecyclerView mRecyclerView;
-    private RecyclerView.Adapter mAdapter;
-    private RecyclerView.LayoutManager mLayoutManager;
     private Button btnCheckPermission;
     private Button btnWifiScan;
+    private Button btnConnect;
 
     static final int REQUEST_ACCESS_COARSE_LOCATION = 10;
-    static String PG_SSID = "DanbyMailbox";
-    static String PG_KEY = "password123";
+    static String PG_SSID = "\"DPL-Guest\"";
+    static String PG_KEY = "\"Winds0r1947\"";
     List<ScanResult> myDataset = new ArrayList<>();
 
 
@@ -54,14 +59,15 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mRecyclerView = findViewById(R.id.my_recycler_view);
         btnCheckPermission = findViewById(R.id.btnPermission);
         btnWifiScan = findViewById(R.id.btnScan);
+        btnConnect = findViewById(R.id.btn_connect);
+
 
         btnCheckPermission.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Log.d("CHK", "Permission");
+                Log.d("CHK", "Checking Permission");
                 checkPermission();
             }
         });
@@ -70,24 +76,21 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View v) {
                 startScan();
-//                startList();
             }
 
         });
 
-        // use a linear layout manager
-        mLayoutManager = new LinearLayoutManager(this);
-        mRecyclerView.setLayoutManager(mLayoutManager);
+        btnConnect.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                connectSoftAp();
+            }
 
-        // specify an adapter (see also next example)
-        mAdapter = new MyAdapter(myDataset);
-        mRecyclerView.setAdapter(mAdapter);
+        });
 
 
         getWifiManager();
-        _config = createSoftApConfig();
 
-        _manager.addNetwork(_config);
 
         _receiver = new BroadcastReceiver() {
             @Override
@@ -95,27 +98,28 @@ public class MainActivity extends Activity {
 //                myDataset.clear();
 
                 Log.d("MAINWIFI","WiFi onReceive");
-                List<ScanResult> list =_manager.getScanResults();
 
-                for (ScanResult wifi : list) {
+                if (intent.getParcelableExtra("newState")) {
 
-//                    TODO map wifi scanresults to remove duplicate ssid
-
-                    if (!myDataset.contains(wifi)) {
-                        myDataset.add(wifi);
-                        StringBuilder sb = new StringBuilder();
-                        sb.append("BSSID: ").append(wifi.BSSID)
-                                .append("   SSID:").append(wifi.SSID+"\n")
-                                .append("   RSSI:").append(wifi.level)
-                                .append("   Capabilities:").append(wifi.capabilities+"\n");
-
-                        Log.d("LIST2", wifi.toString());
-                        Log.d("LIST", sb.toString());
-
-
-                    }
-                    mAdapter.notifyDataSetChanged();
                 }
+
+                //                List<ScanResult> list =_manager.getScanResults();
+
+//                for (ScanResult wifi : list) {
+//
+//                    if (!myDataset.contains(wifi)) {
+//                        myDataset.add(wifi);
+//                        StringBuilder sb = new StringBuilder();
+//                        sb.append("BSSID: ").append(wifi.BSSID)
+//                                .append("   SSID:").append(wifi.SSID+"\n")
+//                                .append("   RSSI:").append(wifi.level)
+//                                .append("   Capabilities:").append(wifi.capabilities+"\n");
+//
+//                      Log.d("SCAN", sb.toString());
+//
+//
+//                    }
+//                }
 
             }
         };
@@ -131,45 +135,88 @@ public class MainActivity extends Activity {
     }
 
 
-    public void startList() {
-        List<WifiConfiguration> list = _manager.getConfiguredNetworks();
-        for (WifiConfiguration item : list) {
-            StringBuilder sb = new StringBuilder();
-            sb.append("NetId: ").append(item.networkId)
-                    .append("   SSID:").append(item.SSID);
-            Log.d("LIST", sb.toString());
-
-            sb = new StringBuilder();
-
-
-        }
-
+    public void startScan() {
+        printList();
+//        boolean res = _manager.startScan();
+//        Toast.makeText(this, "Scanning: " + (res ? "Success" : "Fail"), Toast.LENGTH_SHORT).show();
     }
 
-    public void startScan() {
-//        Toast.makeText(this, "Starting Scan", Toast.LENGTH_SHORT).show();
-//        int res = _manager.getWifiState();
-//        Toast.makeText(this, "WiFi State: " + String.valueOf(res), Toast.LENGTH_SHORT).show();
-        boolean res = _manager.startScan();
-        Toast.makeText(this, "Scan: " + (res ? "Success" : "Fail"), Toast.LENGTH_SHORT).show();
+    public void printList() {
+        List<WifiConfiguration> list = _manager.getConfiguredNetworks();
+
+        for (WifiConfiguration wifi:list) {
+           Log.d("PG", wifi.SSID.toString());
+        }
+    }
+
+    public void connectSoftAp() {
+        WifiConfiguration ap = createSoftApConfig();
+        int netID =_manager.addNetwork(ap);
+        _manager.disconnect();
+        _manager.enableNetwork(netID, true);
+        boolean res = _manager.reconnect();
+        Log.d("TEST", String.valueOf(res));
+
+
+//        NetworkRequest request = new NetworkRequest.Builder().addTransportType(TRANSPORT_WIFI).build();
+//        ConnectivityManager.NetworkCallback networkCallback = new ConnectivityManager.NetworkCallback() {
+//
+//        };
+//        connManager.registerNetworkCallback(request, networkCallback);
+
+
+IntentFilter intent = new IntentFilter(WifiManager.EXTRA_NEW_STATE);
+//        IntentFilter intent = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
+        registerReceiver(_receiver, intent);
+
     }
 
 
     public void checkPermission() {
-        Toast.makeText(this, "Checking WiFi Permissions", Toast.LENGTH_SHORT).show();
 
-        if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_COARSE_LOCATION)) {
-            // Custom permission dialog
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 
-        } else {
+            //Check if permission is disabled
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_COARSE_LOCATION)) {
-                    ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, REQUEST_ACCESS_COARSE_LOCATION);
+
+                Log.d("CHK", String.valueOf(ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)));
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
+                        0);
+
+                // Utility method to display permission request.
+                // Returns false if user has enabled do not ask again or device policy. True if denied
+                if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_COARSE_LOCATION) == false) {
+
+                    AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(this);
+                    dialogBuilder.setMessage("Mailbox App needs access to this device's location to connect and configure your mailbox.");
+                    dialogBuilder.setTitle("Mailbox App Permission");
+                    dialogBuilder.setPositiveButton(R.string.accept, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            ActivityCompat.requestPermissions(getParent(), new String[] {Manifest.permission.ACCESS_COARSE_LOCATION}, REQUEST_ACCESS_COARSE_LOCATION);
+                        }
+                    });
+                    dialogBuilder.setNegativeButton(R.string.deny, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            //
+                        }
+                    });
+                    dialogBuilder.create();
+                    dialogBuilder.show();
+                } else {
+                    ActivityCompat.requestPermissions(this,
+                            new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
+                            REQUEST_ACCESS_COARSE_LOCATION);
                 }
-                // API 23+ can revoke permissions
+            }
+            else {
+
             }
         }
     }
+
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
@@ -180,7 +227,6 @@ public class MainActivity extends Activity {
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     // permission was granted, yay! Do the
                     // contacts-related task you need to do.
-                    _manager.startScan();
                 } else {
                     Toast.makeText(this, "Permission Denied", Toast.LENGTH_LONG);
                     // permission denied, boo! Disable the
@@ -199,68 +245,30 @@ public class MainActivity extends Activity {
         if (_manager == null) {
             _manager = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
         }
+
+        if (connManager == null ) {
+            connManager = (ConnectivityManager) getApplicationContext().getSystemService(CONNECTIVITY_SERVICE);
+        }
         return;
     }
 
     // TODO - Static config?
     public WifiConfiguration createSoftApConfig() {
+
+        List<WifiConfiguration> list = _manager.getConfiguredNetworks();
+
+        for (WifiConfiguration wifi:list) {
+//            Log.d("PG", wifi.toString());
+            if (wifi.SSID.compareTo(PG_SSID) == 0) {
+                return wifi;
+            }
+        }
+
         WifiConfiguration config = new WifiConfiguration();
         config.SSID = PG_SSID;
         config.hiddenSSID = false;
         config.preSharedKey = PG_KEY; // Pre-shared key for WPA-pSK
-        config.status = WifiConfiguration.Status.ENABLED;
         return config;
     }
 
-}
-
-class MyAdapter extends RecyclerView.Adapter<MyAdapter.ViewHolder> {
-    private List<ScanResult> mDataset;
-
-    // Provide a reference to the views for each data item
-    // Complex data items may need more than one view per item, and
-    // you provide access to all the views for a data item in a view holder
-    public static class ViewHolder extends RecyclerView.ViewHolder {
-        // each data item is just a string in this case
-        public TextView textSsid;
-        public TextView textBssid;
-
-        public ViewHolder(View view) {
-            super(view);
-            textSsid = view.findViewById(R.id.text_ssid);
-            textBssid = view.findViewById(R.id.text_bssid);
-        }
-    }
-
-    // Provide a suitable constructor (depends on the kind of dataset)
-    public MyAdapter(List<ScanResult> myDataset) {
-        this.mDataset = myDataset;
-    }
-
-    // Create new views (invoked by the layout manager)
-    @Override
-    public MyAdapter.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        // create a new view
-        LinearLayout v = (LinearLayout) LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.wifi_field, parent, false);
-        ViewHolder vh = new ViewHolder(v);
-        return vh;
-    }
-
-    // Replace the contents of a view (invoked by the layout manager)
-    @Override
-    public void onBindViewHolder(ViewHolder holder, int position) {
-        // - get element from your dataset at this position
-        // - replace the contents of the view with that element
-        ScanResult wifi = mDataset.get(position);
-        holder.textSsid.setText(wifi.SSID);
-        holder.textBssid.setText(wifi.capabilities);
-    }
-
-    // Return the size of your dataset (invoked by the layout manager)
-    @Override
-    public int getItemCount() {
-//        Toast.makeText(this, "Hello", Toast.LENGTH_SHORT).show();
-        return mDataset.size();
-    }
 }

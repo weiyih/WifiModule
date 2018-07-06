@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">WifiModule</string>
+    <string name="accept">OK</string>
+    <string name="deny">Cancel</string>
 </resources>
