@@ -172,6 +172,7 @@ IntentFilter intent = new IntentFilter(WifiManager.EXTRA_NEW_STATE);
     }
 
 
+
     public void checkPermission() {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -205,10 +206,11 @@ IntentFilter intent = new IntentFilter(WifiManager.EXTRA_NEW_STATE);
                     });
                     dialogBuilder.create();
                     dialogBuilder.show();
-                } else {
+                } else { // Usre Denied
                     ActivityCompat.requestPermissions(this,
                             new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
                             REQUEST_ACCESS_COARSE_LOCATION);
+
                 }
             }
             else {
@@ -217,6 +219,8 @@ IntentFilter intent = new IntentFilter(WifiManager.EXTRA_NEW_STATE);
         }
     }
 
+
+    onRequest
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
